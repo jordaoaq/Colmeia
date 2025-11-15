@@ -1,0 +1,46 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# Node
+node_modules/
+
+# Expo
+.expo/
+web/cache/
+web/cache/**
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Env/Secrets
+.env
+
+# Build/Temp
+*.tmp
+*.swp
+*.swo
+
+# Outros
+*.bak
+*.orig
+
+# Imagens cacheadas
+assets/images/cache/
+
+# IDEs
+.idea/
+
+# Outras pastas de build
+/dist/
+/build/
+
+# Expo Go QR
+.expo-shared/
