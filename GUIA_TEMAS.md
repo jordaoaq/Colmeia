@@ -22,5 +22,3 @@ O Colmeia possui um sistema de temas sazonais (primavera, verão, outono, invern
 - Para apresentações, troque o tema ao vivo para mostrar a flexibilidade do app.
 
 ---
-
-Se quiser exemplos de código para trocar tema ou criar um novo, peça pelo arquivo ou funcionalidade!
