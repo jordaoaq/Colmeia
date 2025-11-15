@@ -264,11 +264,18 @@ export default function ListasScreen() {
   const toggleTaskSelection = (taskId: string) => {
     if (deleteMode) {
       // No modo de exclusão, adiciona ou remove da seleção
-      setSelectedTasks((prev) =>
-        prev.includes(taskId)
+      setSelectedTasks((prev) => {
+        const newSelection = prev.includes(taskId)
           ? prev.filter((id) => id !== taskId)
-          : [...prev, taskId]
-      );
+          : [...prev, taskId];
+
+        // Se desselecionar tudo, sai do modo de exclusão
+        if (newSelection.length === 0) {
+          setDeleteMode(false);
+        }
+
+        return newSelection;
+      });
     } else {
       // Comportamento normal: abre para editar
       const task = tasks.find((t) => t.id === taskId);
@@ -286,7 +293,7 @@ export default function ListasScreen() {
     if (deleteMode && selectedTasks.length === 0) {
       setDeleteMode(false);
     }
-  }, [selectedTasks, deleteMode]);
+  }, [selectedTasks]);
 
   const applyBulkAction = async () => {
     if (selectedTasks.length === 0) {

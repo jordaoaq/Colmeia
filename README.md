@@ -26,12 +26,13 @@ Colmeia é um aplicativo colaborativo para organização de tarefas, compras, ro
    npm install
    npx expo install
    ```
-2. Copie o arquivo `.env.example` para `.env` e preencha com suas credenciais do Firebase:
+2. Configure as variáveis de ambiente do Firebase:
 
-   ```bash
-   cp .env.example .env
-   # Edite o arquivo .env com suas chaves
-   ```
+   - Copie o arquivo `.env.example` para `.env`:
+     ```bash
+     cp .env.example .env
+     ```
+   - Edite o `.env` e preencha com suas credenciais do Firebase
 
    As variáveis necessárias são:
 
@@ -45,9 +46,12 @@ Colmeia é um aplicativo colaborativo para organização de tarefas, compras, ro
    **Nunca compartilhe seu `.env` no repositório!**
 
 3. Rode o app:
+
    ```bash
    npx expo start
    ```
+
+   **Nota:** O projeto usa `expo-constants` para carregar variáveis de ambiente do `.env` via `app.config.js`.
 
 ## Estrutura de pastas
 

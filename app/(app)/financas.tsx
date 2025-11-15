@@ -142,7 +142,7 @@ export default function FinancasScreen() {
     if (deleteMode && selectedDespesas.length === 0) {
       setDeleteMode(false);
     }
-  }, [selectedDespesas, deleteMode]);
+  }, [selectedDespesas]);
 
   const addDespesa = async () => {
     if (!descricao.trim() || !valor || !activeColmeia) {

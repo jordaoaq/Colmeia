@@ -40,11 +40,9 @@ import {
   deleteTarefaDomesticaDirect,
 } from "@/utils/votingSystem";
 
-
 // Tipos de ação e frequência de rotina
 type ActionType = "add" | "edit";
 type Frequencia = "diaria" | "semanal" | "mensal";
-
 
 // Estrutura de uma rotina doméstica
 interface TarefaDomestica {
@@ -608,6 +606,7 @@ export default function RotinasScreen() {
   };
 
   // Abre modal para adicionar rotina
+  const openAddModal = () => {
     setSelectedTarefa(null);
     setTitulo("");
     setDescricao("");
@@ -620,6 +619,7 @@ export default function RotinasScreen() {
   };
 
   // Long press para entrar no modo de exclusão
+  const handleLongPress = (tarefaId: string) => {
     // Entra no modo de exclusão e seleciona o card
     if (!deleteMode) {
       setDeleteMode(true);
@@ -628,13 +628,21 @@ export default function RotinasScreen() {
   };
 
   // Seleciona/deseleciona rotina para exclusão
+  const toggleTarefaSelection = (tarefaId: string) => {
     if (deleteMode) {
       // No modo de exclusão, adiciona ou remove da seleção
-      setSelectedTarefas((prev) =>
-        prev.includes(tarefaId)
+      setSelectedTarefas((prev) => {
+        const newSelection = prev.includes(tarefaId)
           ? prev.filter((id) => id !== tarefaId)
-          : [...prev, tarefaId]
-      );
+          : [...prev, tarefaId];
+
+        // Se desselecionar tudo, sai do modo de exclusão
+        if (newSelection.length === 0) {
+          setDeleteMode(false);
+        }
+
+        return newSelection;
+      });
     } else {
       // Comportamento normal: abre para editar
       const tarefa = tarefas.find((t) => t.id === tarefaId);
@@ -666,15 +674,15 @@ export default function RotinasScreen() {
     }
   };
 
-  // Sai do modo de exclusão quando todos os cards são desselecionados
   // Sai do modo de exclusão se nada estiver selecionado
   useEffect(() => {
     if (deleteMode && selectedTarefas.length === 0) {
       setDeleteMode(false);
     }
-  }, [selectedTarefas, deleteMode]);
+  }, [selectedTarefas]);
 
   // Aplica ação em lote (exclusão de várias rotinas)
+  const applyBulkAction = async () => {
     if (selectedTarefas.length === 0) {
       Alert.alert("Aviso", "Selecione pelo menos uma tarefa");
       return;
@@ -730,11 +738,13 @@ export default function RotinasScreen() {
   };
 
   // Cancela seleção em lote
+  const cancelSelection = () => {
     setDeleteMode(false);
     setSelectedTarefas([]);
   };
 
   // Fecha modal de rotina
+  const closeModal = () => {
     setModalVisible(false);
     setTitulo("");
     setDescricao("");
@@ -747,6 +757,7 @@ export default function RotinasScreen() {
   };
 
   // Cor para cada frequência
+  const getFrequenciaColor = (freq: Frequencia) => {
     switch (freq) {
       case "diaria":
         return "#FF9500";
@@ -758,6 +769,7 @@ export default function RotinasScreen() {
   };
 
   // Texto de tempo desde última realização
+  const getTempoDesdeUltimaRealizacao = (ultimaRealizacao: any) => {
     if (!ultimaRealizacao) return "Nunca realizada";
 
     const agora = new Date();

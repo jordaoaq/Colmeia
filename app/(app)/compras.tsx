@@ -183,7 +183,7 @@ export default function ComprasScreen() {
     if (deleteMode && selectedItens.length === 0) {
       setDeleteMode(false);
     }
-  }, [selectedItens, deleteMode]);
+  }, [selectedItens]);
 
   // helpers
   const parsePrice = (v: string) => {
