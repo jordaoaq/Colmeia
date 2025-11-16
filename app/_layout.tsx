@@ -39,16 +39,24 @@ export default function RootLayout() {
 
     const inAuthGroup = segments[0] === "(auth)";
     const inAppGroup = segments[0] === "(app)";
+    const isAnonymous = user?.isAnonymous || false;
 
     console.log("Verificando navegação:", {
       user: !!user,
+      isAnonymous,
       inAuthGroup,
       inAppGroup,
       segments,
     });
 
-    // Se usuário está logado e está na área de auth, redireciona para app
-    if (user && inAuthGroup) {
+    // Se usuário anônimo está tentando acessar signup, permite (para converter conta)
+    if (user && isAnonymous && inAuthGroup && segments[1] === "signup") {
+      console.log("Usuário anônimo acessando signup - permitido");
+      return; // Não redireciona
+    }
+
+    // Se usuário está logado (não anônimo) e está na área de auth, redireciona para app
+    if (user && !isAnonymous && inAuthGroup) {
       console.log("Redirecionando para /app/home");
       router.replace("/(app)/home");
     }

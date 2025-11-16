@@ -1,14 +1,10 @@
-import React from "react";
-import RootNavigator from "./navigation/AppNavigator";
-import { registerRootComponent } from "expo";
+// Este arquivo não é mais necessário com Expo Router
+// O ponto de entrada é definido em package.json como "expo-router/entry"
+// A navegação é gerenciada pelos arquivos em app/_layout.tsx
 
-// O ponto de entrada do app agora é o RootNavigator,
-// que gerencia a autenticação e as telas.
-function App() {
-  return <RootNavigator />;
+// Se você precisar fazer alguma inicialização global,
+// faça em app/_layout.tsx que é o root layout do Expo Router
+
+export default function App() {
+  return null;
 }
-
-// Garantir que o root seja registrado corretamente (resolve "main has not been registered")
-registerRootComponent(App);
-
-export default App;

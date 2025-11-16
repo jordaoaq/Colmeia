@@ -13,11 +13,17 @@ import {
   ScrollView,
 } from "react-native";
 import { Colors } from "@/constants/theme";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signInAnonymously } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// =====================
+// TELA DE LOGIN
+// =====================
+// Login com email/senha ou modo anônimo para explorar o app
+// Palavras-chave: LOGIN, AUTENTICAÇÃO, ANÔNIMO, VISITANTE
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -113,6 +119,30 @@ export default function LoginScreen() {
     }
   };
 
+  // =====================
+  // FUNÇÃO: Login anônimo para explorar o app
+  // =====================
+  const handleAnonymousLogin = async () => {
+    setLoading(true);
+    console.log("Tentando fazer login anônimo...");
+
+    try {
+      const userCredential = await signInAnonymously(auth);
+      console.log("Login anônimo bem-sucedido!", userCredential.user.uid);
+
+      // Redireciona para a tela home
+      router.replace("/(app)/home");
+    } catch (error: any) {
+      console.error("Erro no login anônimo:", error.code, error.message);
+      Alert.alert(
+        "Erro",
+        "Não foi possível entrar como visitante. Tente novamente."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -179,6 +209,23 @@ export default function LoginScreen() {
             ) : (
               <Text style={styles.buttonText}>Entrar</Text>
             )}
+          </TouchableOpacity>
+
+          <View style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>ou</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.anonymousButton, loading && styles.buttonDisabled]}
+            onPress={handleAnonymousLogin}
+            disabled={loading}
+          >
+            <Ionicons name="eye-outline" size={20} color="#666" />
+            <Text style={styles.anonymousButtonText}>
+              Explorar como visitante
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -291,5 +338,38 @@ const styles = StyleSheet.create({
     height: 80,
     alignSelf: "center",
     marginBottom: 12,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+    gap: 12,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#ddd",
+  },
+  dividerText: {
+    color: "#999",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  anonymousButton: {
+    backgroundColor: "#fff",
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+  },
+  anonymousButtonText: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
