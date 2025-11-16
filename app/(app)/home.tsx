@@ -67,9 +67,6 @@ export default function HomeScreen() {
   const { activeColmeia } = useColmeia();
   const theme = useAppTheme();
 
-  // Verifica se o usuário é anônimo
-  const isAnonymous = user?.isAnonymous || false;
-
   // =====================
   // ESTATÍSTICAS DO DASHBOARD
   // =====================
@@ -403,36 +400,6 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Banner de usuário anônimo */}
-      {isAnonymous && (
-        <View style={styles.anonymousBanner}>
-          <View style={styles.anonymousBannerContent}>
-            <Ionicons name="eye-outline" size={20} color="#fff" />
-            <Text style={styles.anonymousBannerText}>
-              Modo Visitante - Funcionalidade limitada
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.createAccountButton}
-            onPress={() => {
-              Alert.alert(
-                "Criar Conta",
-                "Para ter acesso completo ao Colmeia, crie uma conta permanente.",
-                [
-                  { text: "Agora não", style: "cancel" },
-                  {
-                    text: "Criar Conta",
-                    onPress: () => router.push("/(auth)/signup"),
-                  },
-                ]
-              );
-            }}
-          >
-            <Text style={styles.createAccountButtonText}>Criar Conta</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       <ScrollView>
         <View
           style={[
@@ -463,9 +430,7 @@ export default function HomeScreen() {
                   { color: theme.textOnBackground, opacity: 0.7 },
                 ]}
               >
-                {isAnonymous
-                  ? "Visitante"
-                  : user?.email?.split("@")[0] || "Usuário"}
+                {user?.email?.split("@")[0]}
               </Text>
             </View>
           </View>
@@ -1170,35 +1135,5 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
-  },
-  anonymousBanner: {
-    backgroundColor: "#FF9500",
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  anonymousBannerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flex: 1,
-  },
-  anonymousBannerText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    flex: 1,
-  },
-  createAccountButton: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  createAccountButtonText: {
-    color: "#FF9500",
-    fontSize: 14,
-    fontWeight: "700",
   },
 });

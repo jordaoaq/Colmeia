@@ -11,19 +11,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Colors } from "@/constants/theme";
-import {
-  createUserWithEmailAndPassword,
-  EmailAuthProvider,
-  linkWithCredential,
-} from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../../firebaseConfig";
 import { useRouter } from "expo-router";
-
-// =====================
-// TELA DE CADASTRO
-// =====================
-// Cria nova conta ou converte usuário anônimo em permanente
-// Palavras-chave: CADASTRO, REGISTRO, CRIAR CONTA, CONVERTER ANÔNIMO
 
 export default function SignupScreen() {
   const [email, setEmail] = useState("");
@@ -31,10 +21,6 @@ export default function SignupScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
-  // Verifica se o usuário atual é anônimo
-  const currentUser = auth.currentUser;
-  const isAnonymous = currentUser?.isAnonymous || false;
 
   const handleSignup = async () => {
     if (!email || !password || !confirmPassword) {
@@ -54,22 +40,10 @@ export default function SignupScreen() {
 
     setLoading(true);
     try {
-      // Se o usuário é anônimo, converte para permanente
-      if (isAnonymous && currentUser) {
-        const credential = EmailAuthProvider.credential(email, password);
-        await linkWithCredential(currentUser, credential);
-        Alert.alert(
-          "Sucesso",
-          "Sua conta foi criada! Agora você tem acesso completo ao Colmeia."
-        );
-      } else {
-        // Cria nova conta normalmente
-        await createUserWithEmailAndPassword(auth, email, password);
-        Alert.alert("Sucesso", "Conta criada com sucesso!");
-      }
+      await createUserWithEmailAndPassword(auth, email, password);
+      Alert.alert("Sucesso", "Conta criada com sucesso!");
       // O router irá redirecionar automaticamente via _layout.tsx
     } catch (error: any) {
-      console.error("Erro ao criar conta:", error.code, error.message);
       let errorMessage = "Erro ao criar conta";
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Este email já está em uso";
@@ -77,9 +51,6 @@ export default function SignupScreen() {
         errorMessage = "Email inválido";
       } else if (error.code === "auth/weak-password") {
         errorMessage = "Senha muito fraca";
-      } else if (error.code === "auth/credential-already-in-use") {
-        errorMessage =
-          "Este email já está vinculado a outra conta. Faça login diretamente.";
       }
       Alert.alert("Erro", errorMessage);
     } finally {
@@ -93,14 +64,8 @@ export default function SignupScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>
-          {isAnonymous ? "Criar Conta Permanente" : "Criar Conta"}
-        </Text>
-        <Text style={styles.subtitle}>
-          {isAnonymous
-            ? "Converta seu acesso em uma conta completa"
-            : "Preencha os dados abaixo"}
-        </Text>
+        <Text style={styles.title}>Criar Conta</Text>
+        <Text style={styles.subtitle}>Preencha os dados abaixo</Text>
 
         <TextInput
           style={styles.input}
