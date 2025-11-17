@@ -5,19 +5,24 @@ Colmeia é um aplicativo colaborativo para organização de tarefas, compras, ro
 ## Funcionalidades principais
 
 - **Tarefas**: Crie, edite e acompanhe tarefas em aberto, com visualização clara do que está pendente.
-- **Rotinas**: Gerencie rotinas domésticas com calendário dinâmico e visual, adaptado ao tema escolhido.
-- **Compras**: Lista de compras compartilhada, com categorias, unidades, preço por unidade/peso e cálculo automático de subtotal.
+- **Rotinas**: Gerencie rotinas domésticas com calendário dinâmico e visual, adaptado ao tema escolhido. Agora com entrada flexível para horários agendados, permitindo maior personalização.
+- **Compras**: Lista de compras compartilhada, com categorias, unidades, preço por unidade/peso e cálculo automático de subtotal. Possui área de "total" que exibe o custo total das compras em tempo real.
 - **Finanças**: Controle de despesas do grupo, com visualização de gastos semanais e mensais.
 - **Colmeias**: Crie ou entre em diferentes grupos (colmeias) usando código de convite.
+- **Sistema de votação**: Para grupos com 3 ou mais membros, ações como deletar tarefas, itens de compra, despesas e remover membros requerem votação democrática.
 - **Temas sazonais**: Interface personalizável com temas de primavera, verão, outono e inverno, em versões dia e noite.
+- **Feed de atividades**: Acompanhe todas as ações realizadas pelos membros do grupo em tempo real.
 
 ## Tecnologias utilizadas
 
 - React Native (Expo)
-- Firebase Firestore
+- TypeScript
+- Firebase Firestore & Authentication
 - React Navigation
 - React Native Calendars
 - AsyncStorage
+- Sistema de votação customizado
+- Sistema de logs de atividades
 
 ## Como rodar o projeto
 
@@ -56,11 +61,14 @@ Colmeia é um aplicativo colaborativo para organização de tarefas, compras, ro
 ## Estrutura de pastas
 
 - `app/` - Telas principais do app
-- `components/` - Componentes reutilizáveis
-- `contexts/` - Contextos globais (tema, colmeia)
+  - `(auth)/` - Telas de autenticação (login, signup)
+  - `(app)/` - Telas principais da aplicação (home, tarefas, compras, finanças, rotinas, colmeias)
+- `components/` - Componentes reutilizáveis (botões, modals, etc)
+- `contexts/` - Contextos globais (tema, colmeia ativa)
 - `hooks/` - Hooks customizados
-- `utils/` - Funções utilitárias
+- `utils/` - Funções utilitárias (votingSystem, activityLogger)
 - `constants/` - Temas e constantes
+- `assets/` - Imagens e recursos estáticos
 
 ## Segurança e boas práticas
 
@@ -79,9 +87,13 @@ Colmeia é um aplicativo colaborativo para organização de tarefas, compras, ro
 
 - Interface moderna, responsiva e acessível
 - Cores e calendário dinâmicos conforme o tema
-- Cálculo inteligente de subtotais nas compras
+- Cálculo inteligente de subtotais e total geral nas compras
 - Dashboard com métricas úteis para o grupo
+- Sistema de votação democrático para grupos maiores
+- Feed de atividades em tempo real
+- Entrada flexível para horários nas rotinas
 - Experiência pensada para uso real em repúblicas, famílias e grupos
+- TypeScript para maior segurança de tipos e manutenibilidade
 
 ## Licença
 
