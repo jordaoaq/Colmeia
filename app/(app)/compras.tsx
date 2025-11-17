@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useColmeia } from "@/contexts/ColmeiaContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import ActionButton from "@/components/ActionButton";
+import VotingButton from "@/components/VotingButton";
 import {
   collection,
   query,
@@ -32,6 +33,11 @@ import {
 } from "firebase/firestore";
 import { db, auth } from "@/firebaseConfig";
 import { addActivityLog } from "@/utils/activityLogger";
+import {
+  needsVoting,
+  createVote,
+  deleteItemCompraDirect,
+} from "@/utils/votingSystem";
 
 type Categoria =
   | "alimentos"
@@ -156,6 +162,9 @@ export default function ComprasScreen() {
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedItens, setSelectedItens] = useState<string[]>([]);
 
+  // votes
+  const [pendingVotes, setPendingVotes] = useState<any[]>([]);
+
   useEffect(() => {
     if (!activeColmeia) {
       setItens([]);
@@ -176,6 +185,30 @@ export default function ComprasScreen() {
     });
 
     return () => unsub();
+  }, [activeColmeia]);
+
+  // Sincronização em tempo real das votações pendentes
+  useEffect(() => {
+    if (!activeColmeia) {
+      setPendingVotes([]);
+      return;
+    }
+
+    const votesRef = collection(db, "colmeias", activeColmeia.id, "votes");
+    const q = query(votesRef);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedVotes: any[] = [];
+      snapshot.forEach((doc) => {
+        fetchedVotes.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+      setPendingVotes(fetchedVotes);
+    });
+
+    return () => unsubscribe();
   }, [activeColmeia]);
 
   // Auto exit deleteMode when no items are selected
@@ -250,6 +283,7 @@ export default function ComprasScreen() {
     setModalVisible(true);
   };
 
+  // Função: Salva um item de compra (adiciona ou atualiza)
   const saveItem = async () => {
     if (!activeColmeia || !nome.trim()) return;
 
@@ -343,14 +377,42 @@ export default function ComprasScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const promises = selectedItens.map((id) =>
-                deleteDoc(doc(db, "colmeias", activeColmeia.id, "compras", id))
-              );
-              await Promise.all(promises);
-              Alert.alert(
-                "Sucesso",
-                `${selectedItens.length} item(ns) excluído(s)`
-              );
+              const precisaVotacao = await needsVoting(activeColmeia.id);
+
+              if (precisaVotacao) {
+                // Cria votações para cada item
+                for (const itemId of selectedItens) {
+                  const item = itens.find((i) => i.id === itemId);
+                  if (item) {
+                    await createVote(
+                      activeColmeia.id,
+                      "delete_shopping",
+                      itemId,
+                      item.nome
+                    );
+                  }
+                }
+                Alert.alert(
+                  "Votação Iniciada",
+                  `${selectedItens.length} votação(ões) criada(s). Aguarde aprovação dos membros.`
+                );
+              } else {
+                // Deleta diretamente se não precisar de votação
+                for (const itemId of selectedItens) {
+                  const item = itens.find((i) => i.id === itemId);
+                  if (item) {
+                    await deleteItemCompraDirect(
+                      activeColmeia.id,
+                      itemId,
+                      item.nome
+                    );
+                  }
+                }
+                Alert.alert(
+                  "Sucesso",
+                  `${selectedItens.length} item(ns) excluído(s)`
+                );
+              }
               setDeleteMode(false);
               setSelectedItens([]);
             } catch (err) {
@@ -366,10 +428,6 @@ export default function ComprasScreen() {
   const cancelSelection = () => {
     setDeleteMode(false);
     setSelectedItens([]);
-  };
-
-  const limparComprados = () => {
-    // Função removida - não há mais itens comprados
   };
 
   if (!activeColmeia) {
@@ -391,6 +449,12 @@ export default function ComprasScreen() {
       </View>
     );
   }
+
+  // Calcula o total de todos os itens
+  const totalGeral = itens.reduce((acc, item) => {
+    const preco = calculatePrecoTotal(item);
+    return acc + (preco ?? 0);
+  }, 0);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -414,118 +478,144 @@ export default function ComprasScreen() {
           </Text>
         </View>
       ) : (
-        <FlatList
-          data={itens}
-          keyExtractor={(i) => i.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => {
-            const cat =
-              CATEGORIAS.find((c) => c.value === item.categoria) ||
-              CATEGORIAS[0];
-            const isSelected = deleteMode && selectedItens.includes(item.id);
-            const precoTotal = calculatePrecoTotal(item);
+        <>
+          {/* Card de Total */}
+          <View
+            style={[styles.totalCard, { backgroundColor: theme.cardColor }]}
+          >
+            <View style={styles.totalContent}>
+              <Ionicons
+                name="calculator-outline"
+                size={24}
+                color={theme.primary}
+              />
+              <View style={styles.totalTextContainer}>
+                <Text style={[styles.totalLabel, { color: theme.textOnCard }]}>
+                  Total Estimado
+                </Text>
+                <Text style={[styles.totalValue, { color: theme.primary }]}>
+                  R$ {totalGeral.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          </View>
 
-            return (
-              <TouchableOpacity
-                onPress={() =>
-                  deleteMode ? toggleItemSelection(item.id) : openEdit(item)
-                }
-                onLongPress={() => {
-                  if (!deleteMode) {
-                    setDeleteMode(true);
-                    setSelectedItens([item.id]);
+          <FlatList
+            data={itens}
+            keyExtractor={(i) => i.id}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => {
+              const cat =
+                CATEGORIAS.find((c) => c.value === item.categoria) ||
+                CATEGORIAS[0];
+              const isSelected = deleteMode && selectedItens.includes(item.id);
+              const precoTotal = calculatePrecoTotal(item);
+
+              return (
+                <TouchableOpacity
+                  onPress={() =>
+                    deleteMode ? toggleItemSelection(item.id) : openEdit(item)
                   }
-                }}
-              >
-                <View
-                  style={[
-                    styles.itemCard,
-                    { backgroundColor: theme.cardColor },
-                    isSelected && {
-                      borderColor: theme.danger,
-                      borderWidth: 3,
-                    },
-                  ]}
+                  onLongPress={() => {
+                    if (!deleteMode) {
+                      setDeleteMode(true);
+                      setSelectedItens([item.id]);
+                    }
+                  }}
                 >
-                  {/* left accent bar to match hive identity */}
                   <View
                     style={[
-                      styles.itemAccent,
-                      { backgroundColor: cat.color || theme.primary },
+                      styles.itemCard,
+                      { backgroundColor: theme.cardColor },
+                      isSelected && {
+                        borderColor: theme.danger,
+                        borderWidth: 3,
+                      },
                     ]}
-                  />
-
-                  <View style={styles.itemContent}>
-                    <View style={styles.itemHeader}>
-                      <Text
-                        style={[styles.itemNome, { color: theme.textOnCard }]}
-                        numberOfLines={1}
-                      >
-                        {item.nome}
-                      </Text>
-                    </View>
-
-                    <Text
+                  >
+                    {/* left accent bar to match hive identity */}
+                    <View
                       style={[
-                        styles.itemQuantidade,
-                        { color: theme.textOnCard, opacity: 0.7 },
+                        styles.itemAccent,
+                        { backgroundColor: cat.color || theme.primary },
                       ]}
-                    >
-                      Quantidade: {item.quantidade}{" "}
-                      {item.unidadeQuantidade || "unidade"}
-                    </Text>
-                    {item.precoPor != null && (
+                    />
+
+                    <View style={styles.itemContent}>
+                      <View style={styles.itemHeader}>
+                        <Text
+                          style={[styles.itemNome, { color: theme.textOnCard }]}
+                          numberOfLines={1}
+                        >
+                          {item.nome}
+                        </Text>
+                      </View>
+
                       <Text
                         style={[
                           styles.itemQuantidade,
-                          { color: theme.textOnCard, opacity: 0.6 },
+                          { color: theme.textOnCard, opacity: 0.7 },
                         ]}
                       >
-                        Preço: {formatBRL(item.precoPor)}/
-                        {item.unidadePreco === "gr"
-                          ? "100gr"
-                          : item.unidadePreco || "unidade"}
+                        Quantidade: {item.quantidade}{" "}
+                        {item.unidadeQuantidade || "unidade"}
                       </Text>
-                    )}
-                  </View>
-
-                  <View style={styles.rightInfo}>
-                    <View
-                      style={[
-                        styles.categoriaBadge,
-                        { backgroundColor: cat.color },
-                      ]}
-                    >
-                      <Text style={styles.categoriaBadgeLabel}>
-                        {cat.label}
-                      </Text>
+                      {item.precoPor != null && (
+                        <Text
+                          style={[
+                            styles.itemQuantidade,
+                            { color: theme.textOnCard, opacity: 0.6 },
+                          ]}
+                        >
+                          Preço: {formatBRL(item.precoPor)}/
+                          {item.unidadePreco === "gr"
+                            ? "100gr"
+                            : item.unidadePreco || "unidade"}
+                        </Text>
+                      )}
                     </View>
-                    {precoTotal != null ? (
-                      <Text
-                        style={[styles.priceText, { color: theme.textOnCard }]}
-                      >
-                        {formatBRL(precoTotal)}
-                      </Text>
-                    ) : (
-                      <Text
+
+                    <View style={styles.rightInfo}>
+                      <View
                         style={[
-                          styles.pricePlaceholder,
-                          { color: theme.textOnCard, opacity: 0.3 },
+                          styles.categoriaBadge,
+                          { backgroundColor: cat.color },
                         ]}
                       >
-                        R$ -
-                      </Text>
-                    )}
+                        <Text style={styles.categoriaBadgeLabel}>
+                          {cat.label}
+                        </Text>
+                      </View>
+                      {precoTotal != null ? (
+                        <Text
+                          style={[
+                            styles.priceText,
+                            { color: theme.textOnCard },
+                          ]}
+                        >
+                          {formatBRL(precoTotal)}
+                        </Text>
+                      ) : (
+                        <Text
+                          style={[
+                            styles.pricePlaceholder,
+                            { color: theme.textOnCard, opacity: 0.3 },
+                          ]}
+                        >
+                          R$ -
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </>
       )}
 
       {deleteMode && (
-        <View style={[styles.selectionBar, { backgroundColor: theme.primary }]}>
+        <View style={[styles.selectionBar, { backgroundColor: theme.danger }]}>
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={cancelSelection}
@@ -794,6 +884,14 @@ export default function ComprasScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Botão de Votações */}
+      <VotingButton
+        votes={pendingVotes}
+        voteType="delete_shopping"
+        colmeiaId={activeColmeia?.id || ""}
+        visible={!deleteMode}
+      />
     </View>
   );
 }
@@ -806,6 +904,33 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   listContent: { padding: 16, paddingBottom: 90 },
+  totalCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 12,
+    boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
+    elevation: 3,
+  },
+  totalContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  totalTextContainer: {
+    flex: 1,
+  },
+  totalLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    opacity: 0.7,
+    marginBottom: 4,
+  },
+  totalValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+  },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -888,10 +1013,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: "90%",
-  },
-  modalScrollView: {
-    maxHeight: "100%",
+    maxHeight: "80%",
   },
   modalHeader: {
     flexDirection: "row",
@@ -999,12 +1121,46 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E5EA",
   },
+  dropdownItemText: {
+    fontSize: 14,
+  },
   dropdownItemWithIcon: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  dropdownItemText: {
-    fontSize: 14,
+  votesFab: {
+    position: "absolute",
+    left: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FF9500",
+    justifyContent: "center",
+    alignItems: "center",
+    boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+    elevation: 8,
+  },
+  fabBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  fabBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  modalScrollView: {
+    flexGrow: 1,
+    padding: 10,
   },
 });

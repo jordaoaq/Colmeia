@@ -10,7 +10,9 @@ export type ActivityType =
   | "member_left"
   | "vote_created"
   | "vote_completed"
-  | "expense_added";
+  | "expense_added"
+  | "expense_deleted"
+  | "shopping_item_deleted";
 
 interface ActivityLogParams {
   colmeiaId: string;
@@ -64,6 +66,10 @@ export function getActivityMessage(activity: any): string {
       return `${userName} adicionou uma despesa de R$ ${activity.metadata?.valor?.toFixed(
         2
       )}`;
+    case "expense_deleted":
+      return `${userName} deletou a despesa "${activity.metadata?.despesaDescricao}"`;
+    case "shopping_item_deleted":
+      return `${userName} deletou o item "${activity.metadata?.itemName}" da lista de compras`;
     default:
       return `${userName} realizou uma ação`;
   }

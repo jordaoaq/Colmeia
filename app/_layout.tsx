@@ -23,10 +23,6 @@ export default function RootLayout() {
   useEffect(() => {
     // Monitora mudanças no estado de autenticação
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      console.log(
-        "Estado de autenticação mudou:",
-        firebaseUser ? firebaseUser.uid : "null"
-      );
       setUser(firebaseUser);
       setLoading(false);
     });
@@ -40,21 +36,12 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === "(auth)";
     const inAppGroup = segments[0] === "(app)";
 
-    console.log("Verificando navegação:", {
-      user: !!user,
-      inAuthGroup,
-      inAppGroup,
-      segments,
-    });
-
     // Se usuário está logado e está na área de auth, redireciona para app
     if (user && inAuthGroup) {
-      console.log("Redirecionando para /app/home");
       router.replace("/(app)/home");
     }
     // Se usuário não está logado e está na área de app, redireciona para login
     else if (!user && inAppGroup) {
-      console.log("Redirecionando para /auth/login");
       router.replace("/(auth)/login");
     }
   }, [user, segments, loading]);

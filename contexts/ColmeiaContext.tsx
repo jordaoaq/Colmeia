@@ -118,7 +118,6 @@ export function ColmeiaProvider({ children }: { children: React.ReactNode }) {
   // Monitora mudanças no estado de autenticação
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("ColmeiaContext: Auth state changed", user?.uid || "null");
       setUserId(user?.uid || null);
     });
 
@@ -128,7 +127,6 @@ export function ColmeiaProvider({ children }: { children: React.ReactNode }) {
   // Carrega colmeias quando o userId muda
   useEffect(() => {
     if (userId) {
-      console.log("ColmeiaContext: Loading colmeias for user", userId);
       refreshColmeias();
     } else {
       setUserColmeias([]);

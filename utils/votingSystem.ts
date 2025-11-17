@@ -13,7 +13,13 @@ import {
 import { db, auth } from "../firebaseConfig";
 import { addActivityLog } from "./activityLogger";
 
-export type VoteType = "delete_task" | "remove_member" | "delete_colmeia";
+export type VoteType =
+  | "delete_task"
+  | "delete_routine"
+  | "delete_shopping"
+  | "delete_expense"
+  | "remove_member"
+  | "delete_colmeia";
 
 interface VoteData {
   type: VoteType;
@@ -90,8 +96,9 @@ export async function createVote(
   const userId = auth.currentUser?.uid;
   if (!userId) throw new Error("Usuário não autenticado");
 
-  // Verifica se já existe uma votação pendente para este target
   const votesRef = collection(db, "colmeias", colmeiaId, "votes");
+
+  // Verifica se já existe uma votação pendente para este target
   const existingVoteQuery = query(
     votesRef,
     where("targetId", "==", targetId),
@@ -231,6 +238,23 @@ async function executeVote(colmeiaId: string, voteId: string): Promise<void> {
       case "delete_task":
         await deleteTask(colmeiaId, voteData.targetId, voteData.targetName);
         break;
+      case "delete_routine":
+        await deleteTarefaDomestica(
+          colmeiaId,
+          voteData.targetId,
+          voteData.targetName
+        );
+        break;
+      case "delete_shopping":
+        await deleteItemCompra(
+          colmeiaId,
+          voteData.targetId,
+          voteData.targetName
+        );
+        break;
+      case "delete_expense":
+        await deleteDespesa(colmeiaId, voteData.targetId, voteData.targetName);
+        break;
       case "remove_member":
         await removeMember(colmeiaId, voteData.targetId, voteData.targetName);
         break;
@@ -239,12 +263,7 @@ async function executeVote(colmeiaId: string, voteId: string): Promise<void> {
         break;
     }
 
-    // Marca votação como aprovada
-    await updateDoc(voteRef, {
-      status: "approved",
-    });
-
-    // Registra atividade
+    // Registra atividade antes de deletar a votação
     await addActivityLog({
       colmeiaId,
       type: "vote_completed",
@@ -254,11 +273,13 @@ async function executeVote(colmeiaId: string, voteId: string): Promise<void> {
         result: "approved",
       },
     });
+
+    // Deleta a votação após execução bem-sucedida
+    await deleteDoc(voteRef);
   } catch (error) {
     console.error("Erro ao executar votação:", error);
-    await updateDoc(voteRef, {
-      status: "rejected",
-    });
+    // Deleta a votação mesmo em caso de erro
+    await deleteDoc(voteRef);
   }
 }
 
@@ -277,6 +298,60 @@ async function deleteTask(
     colmeiaId,
     type: "task_deleted",
     metadata: { taskTitle: taskName },
+  });
+}
+
+/**
+ * Deleta uma tarefa doméstica (rotina) após votação aprovada
+ */
+async function deleteTarefaDomestica(
+  colmeiaId: string,
+  tarefaId: string,
+  tarefaName: string
+): Promise<void> {
+  const tarefaRef = doc(db, "colmeias", colmeiaId, "rotinas", tarefaId);
+  await deleteDoc(tarefaRef);
+
+  await addActivityLog({
+    colmeiaId,
+    type: "task_deleted",
+    metadata: { taskTitle: tarefaName },
+  });
+}
+
+/**
+ * Deleta um item de compra após votação aprovada
+ */
+async function deleteItemCompra(
+  colmeiaId: string,
+  itemId: string,
+  itemName: string
+): Promise<void> {
+  const itemRef = doc(db, "colmeias", colmeiaId, "compras", itemId);
+  await deleteDoc(itemRef);
+
+  await addActivityLog({
+    colmeiaId,
+    type: "shopping_item_deleted",
+    metadata: { itemName },
+  });
+}
+
+/**
+ * Deleta uma despesa após votação aprovada
+ */
+async function deleteDespesa(
+  colmeiaId: string,
+  despesaId: string,
+  despesaDescricao: string
+): Promise<void> {
+  const despesaRef = doc(db, "colmeias", colmeiaId, "financas", despesaId);
+  await deleteDoc(despesaRef);
+
+  await addActivityLog({
+    colmeiaId,
+    type: "expense_deleted",
+    metadata: { despesaDescricao },
   });
 }
 
@@ -398,6 +473,42 @@ export async function deleteTarefaDomesticaDirect(
     colmeiaId,
     type: "task_deleted",
     metadata: { taskTitle: tarefaName },
+  });
+}
+
+/**
+ * Deleta um item de compra diretamente (sem votação) - para colmeias com menos de 3 membros
+ */
+export async function deleteItemCompraDirect(
+  colmeiaId: string,
+  itemId: string,
+  itemName: string
+): Promise<void> {
+  const itemRef = doc(db, "colmeias", colmeiaId, "compras", itemId);
+  await deleteDoc(itemRef);
+
+  await addActivityLog({
+    colmeiaId,
+    type: "shopping_item_deleted",
+    metadata: { itemName },
+  });
+}
+
+/**
+ * Deleta uma despesa diretamente (sem votação) - para colmeias com menos de 3 membros
+ */
+export async function deleteDespesaDirect(
+  colmeiaId: string,
+  despesaId: string,
+  despesaDescricao: string
+): Promise<void> {
+  const despesaRef = doc(db, "colmeias", colmeiaId, "financas", despesaId);
+  await deleteDoc(despesaRef);
+
+  await addActivityLog({
+    colmeiaId,
+    type: "expense_deleted",
+    metadata: { despesaDescricao },
   });
 }
 

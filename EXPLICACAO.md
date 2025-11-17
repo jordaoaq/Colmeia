@@ -4,7 +4,7 @@ O Colmeia é um aplicativo colaborativo para grupos, repúblicas e famílias org
 
 ## Visão Geral da Arquitetura
 
-O app é modularizado em telas (pasta `app/`), componentes reutilizáveis (`components/`), contextos globais (`contexts/`), hooks customizados (`hooks/`), utilitários (`utils/`) e temas (`constants/`). A navegação é feita por abas, e o estado global (tema, grupo ativo) é gerenciado por contextos React.
+O app é modularizado em telas (pasta `app/`), componentes reutilizáveis (`components/`), contextos globais (`contexts/`), hooks customizados (`hooks/`), utilitários (`utils/`) e temas (`constants/`). A navegação é feita por abas, e o estado global (tema, colmeia ativa) é gerenciado por contextos React.
 
 ## Funcionalidades e Implementação no Código
 
@@ -34,14 +34,14 @@ O app é modularizado em telas (pasta `app/`), componentes reutilizáveis (`comp
 ### 3. Rotinas (Tarefas Recorrentes)
 
 - **Arquivo:** `app/(app)/rotinas.tsx`
-- **Fluxo:** Rotinas são documentos com frequência (`diária`, `semanal`, etc.) e datas agendadas. O calendário é renderizado com `react-native-calendars`, destacando dias com rotinas.
+- **Fluxo:** Rotinas são documentos com frequência (`diária`, `semanal`, `mensal`.) e datas agendadas. O calendário é renderizado com `react-native-calendars`, destacando dias com rotinas.
 - **Interfaces:**
   ```ts
   interface Rotina {
     id: string;
     titulo: string;
     frequencia: "diaria" | "semanal" | "mensal";
-    agendamentos: string[];
+    agendamentos: string[]; // Agora suporta horários flexíveis
     criadaPor: string;
   }
   ```
@@ -63,7 +63,7 @@ O app é modularizado em telas (pasta `app/`), componentes reutilizáveis (`comp
     comprado: boolean;
   }
   ```
-- **Alterações:** Permite adicionar, editar, marcar como comprado e excluir itens. Ações em lote são suportadas.
+- **Alterações:** Permite adicionar, editar, marcar como comprado e excluir itens. Ações em lote são suportadas. Adicionada uma área de "total" que calcula automaticamente a soma dos preços dos itens na lista.
 
 ### 5. Finanças (Despesas do Grupo)
 
@@ -155,6 +155,46 @@ O app é modularizado em telas (pasta `app/`), componentes reutilizáveis (`comp
 - **Alterações:**
   - Login/cadastro: Usa métodos do Firebase Auth.
   - Logout: Limpa o contexto e redireciona para login.
+
+### 9. Atualizações Recentes
+
+#### Rotinas (Tarefas Recorrentes)
+
+- **Alteração:** Agora permite entrada flexível para horários agendados, facilitando a personalização das rotinas.
+- **Impacto:** Usuários podem definir horários com maior precisão, melhorando a organização.
+
+#### Compras (Lista Compartilhada)
+
+- **Alteração:** Adicionada uma área de "total" que calcula automaticamente a soma dos preços dos itens na lista.
+- **Impacto:** Facilita o controle financeiro ao exibir o custo total das compras em tempo real.
+
+### Interfaces Atualizadas
+
+#### Rotina
+
+```ts
+interface Rotina {
+  id: string;
+  titulo: string;
+  frequencia: "diaria" | "semanal" | "mensal";
+  agendamentos: string[]; // Agora suporta horários flexíveis
+  criadaPor: string;
+}
+```
+
+#### ItemCompra
+
+```ts
+interface ItemCompra {
+  id: string;
+  nome: string;
+  categoria: string;
+  unidade: string;
+  quantidade: number;
+  preco: number;
+  comprado: boolean;
+}
+```
 
 ## Como as Alterações São Feitas
 

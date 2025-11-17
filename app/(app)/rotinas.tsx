@@ -34,6 +34,7 @@ import {
 import { db, auth } from "@/firebaseConfig";
 import { addActivityLog } from "@/utils/activityLogger";
 import ActionButton from "@/components/ActionButton";
+import VotingButton from "@/components/VotingButton";
 import {
   needsVoting,
   createVote,
@@ -89,6 +90,9 @@ export default function RotinasScreen() {
   );
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedTarefas, setSelectedTarefas] = useState<string[]>([]);
+
+  // Estados para votações
+  const [pendingVotes, setPendingVotes] = useState<any[]>([]);
 
   // Formulário de criação/edição de rotina
   const [titulo, setTitulo] = useState("");
@@ -380,6 +384,30 @@ export default function RotinasScreen() {
     return () => unsubscribe();
   }, [activeColmeia]);
 
+  // Sincronização em tempo real das votações pendentes
+  useEffect(() => {
+    if (!activeColmeia) {
+      setPendingVotes([]);
+      return;
+    }
+
+    const votesRef = collection(db, "colmeias", activeColmeia.id, "votes");
+    const q = query(votesRef);
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedVotes: any[] = [];
+      snapshot.forEach((doc) => {
+        fetchedVotes.push({
+          id: doc.id,
+          ...doc.data(),
+        });
+      });
+      setPendingVotes(fetchedVotes);
+    });
+
+    return () => unsubscribe();
+  }, [activeColmeia]);
+
   // =====================
   // FUNÇÃO: Adiciona ou edita rotina doméstica
   // =====================
@@ -441,7 +469,7 @@ export default function RotinasScreen() {
       setFrequencia("semanal");
       setScheduledWeekdays([new Date().getDay()]);
       setScheduledDay(new Date().getDate());
-      setScheduledHour(9);
+      setScheduledHour(0);
       setScheduledMinute(0);
       setSelectedTarefa(null);
       setModalVisible(false);
@@ -459,12 +487,6 @@ export default function RotinasScreen() {
       return;
     }
 
-    console.log("Marcando tarefa como realizada:", {
-      tarefaId: tarefa.id,
-      colmeiaId: activeColmeia.id,
-      titulo: tarefa.titulo,
-    });
-
     try {
       const tarefaRef = doc(
         db,
@@ -473,8 +495,6 @@ export default function RotinasScreen() {
         "rotinas",
         tarefa.id
       );
-
-      console.log("Referência criada, atualizando documento...");
 
       // Criar timestamp atual para adicionar ao histórico
       const agora = new Date();
@@ -486,15 +506,12 @@ export default function RotinasScreen() {
         historicoRealizacoes: [...currentHistorico, agora],
       });
 
-      console.log("Documento atualizado, registrando atividade...");
-
       await addActivityLog({
         colmeiaId: activeColmeia.id,
         type: "task_completed",
         metadata: { taskTitle: tarefa.titulo },
       });
 
-      console.log("Sucesso!");
       Alert.alert("Sucesso", "Tarefa marcada como realizada!");
     } catch (error: any) {
       console.error("Erro ao marcar tarefa:", error);
@@ -563,45 +580,33 @@ export default function RotinasScreen() {
   const deleteTarefa = async (tarefa: TarefaDomestica) => {
     if (!activeColmeia) return;
 
-    const precisaVotacao = await needsVoting(activeColmeia.id);
+    try {
+      const precisaVotacao = await needsVoting(activeColmeia.id);
 
-    if (precisaVotacao) {
-      // Cria votação
-      try {
+      if (precisaVotacao) {
+        // Cria uma votação para deletar a rotina
         await createVote(
           activeColmeia.id,
-          "delete_task",
+          "delete_routine",
           tarefa.id,
           tarefa.titulo
         );
         Alert.alert(
           "Votação Iniciada",
-          "Uma votação foi criada para deletar esta tarefa"
+          "Uma votação foi criada para deletar esta rotina. Aguarde aprovação dos membros."
         );
-      } catch (error) {
-        Alert.alert("Erro", "Não foi possível criar a votação");
+      } else {
+        // Deleta diretamente se não for necessário votação
+        await deleteTarefaDomesticaDirect(
+          activeColmeia.id,
+          tarefa.id,
+          tarefa.titulo
+        );
+        Alert.alert("Sucesso", "Rotina deletada com sucesso!");
       }
-    } else {
-      // Deleta diretamente
-      Alert.alert("Confirmar Exclusão", `Deseja deletar "${tarefa.titulo}"?`, [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Deletar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteTarefaDomesticaDirect(
-                activeColmeia.id,
-                tarefa.id,
-                tarefa.titulo
-              );
-              Alert.alert("Sucesso", "Tarefa deletada!");
-            } catch (error) {
-              Alert.alert("Erro", "Não foi possível deletar a tarefa");
-            }
-          },
-        },
-      ]);
+    } catch (error) {
+      console.error("Erro ao deletar rotina:", error);
+      Alert.alert("Erro", "Não foi possível deletar a rotina.");
     }
   };
 
@@ -702,7 +707,7 @@ export default function RotinasScreen() {
           if (tarefa) {
             await createVote(
               activeColmeia.id,
-              "delete_task",
+              "delete_routine",
               tarefaId,
               tarefa.titulo
             );
@@ -1232,6 +1237,14 @@ export default function RotinasScreen() {
         />
       )}
 
+      {/* Botão de Votações */}
+      <VotingButton
+        votes={pendingVotes}
+        voteType="delete_routine"
+        colmeiaId={activeColmeia?.id || ""}
+        visible={!deleteMode}
+      />
+
       {/* Modal Adicionar Tarefa */}
       <Modal
         visible={modalVisible}
@@ -1439,11 +1452,22 @@ export default function RotinasScreen() {
                       placeholder="Hora (0-23)"
                       placeholderTextColor={theme.textOnBackground + "80"}
                       keyboardType="numeric"
-                      value={String(scheduledHour)}
+                      value={
+                        scheduledHour === null ? "" : String(scheduledHour)
+                      }
                       onChangeText={(v) => {
+                        if (v === "") {
+                          setScheduledHour(null as any);
+                          return;
+                        }
                         const n = parseInt(v.replace(/[^0-9]/g, ""), 10);
                         if (!isNaN(n)) {
                           setScheduledHour(Math.max(0, Math.min(23, n)));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (scheduledHour === null) {
+                          setScheduledHour(9);
                         }
                       }}
                     />
@@ -1468,11 +1492,24 @@ export default function RotinasScreen() {
                       placeholder="Minuto (0-59)"
                       placeholderTextColor={theme.textOnBackground + "80"}
                       keyboardType="numeric"
-                      value={String(scheduledMinute).padStart(2, "0")}
+                      value={
+                        scheduledMinute === null
+                          ? ""
+                          : String(scheduledMinute).padStart(2, "0")
+                      }
                       onChangeText={(v) => {
+                        if (v === "") {
+                          setScheduledMinute(null as any);
+                          return;
+                        }
                         const n = parseInt(v.replace(/[^0-9]/g, ""), 10);
                         if (!isNaN(n)) {
                           setScheduledMinute(Math.max(0, Math.min(59, n)));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (scheduledMinute === null) {
+                          setScheduledMinute(0);
                         }
                       }}
                     />
@@ -1911,5 +1948,113 @@ const styles = StyleSheet.create({
   },
   applyButtonDisabled: {
     opacity: 0.5,
+  },
+  votesFab: {
+    position: "absolute",
+    left: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FF9500",
+    justifyContent: "center",
+    alignItems: "center",
+    boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+    elevation: 8,
+  },
+  fabBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF3B30",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 6,
+  },
+  fabBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+  voteCard: {
+    backgroundColor: "#FFF9E6",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FFD700",
+  },
+  voteHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  voteTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+  },
+  voteDescription: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  voteProgress: {
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    height: 8,
+    borderRadius: 4,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  voteCount: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+  voteActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  votedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  votedText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  voteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  voteButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  removeVoteButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  removeVoteText: {
+    fontSize: 14,
   },
 });

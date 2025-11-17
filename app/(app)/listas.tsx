@@ -19,6 +19,7 @@ import { useColmeia } from "@/contexts/ColmeiaContext";
 import { useAppTheme } from "@/hooks/useAppTheme";
 import { addActivityLog } from "@/utils/activityLogger";
 import ActionButton from "@/components/ActionButton";
+import VotingButton from "@/components/VotingButton";
 import {
   collection,
   addDoc,
@@ -70,7 +71,6 @@ export default function ListasScreen() {
   const [pendingVotes, setPendingVotes] = useState<Vote[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [votesModalVisible, setVotesModalVisible] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -136,6 +136,8 @@ export default function ListasScreen() {
     return () => unsubscribe();
   }, [activeColmeia]);
 
+  // Função: Alterna o status de conclusão de uma tarefa
+  // Função: Alterna o status de conclusão de uma tarefa
   const toggleTask = async (task: Task) => {
     if (!activeColmeia) return;
 
@@ -237,11 +239,7 @@ export default function ListasScreen() {
       setNewTaskDescription("");
       setSelectedTask(null);
       setModalVisible(false);
-      setNewTaskTitle("");
-      setNewTaskDescription("");
-      setSelectedTask(null);
     } catch (error) {
-      console.error("Erro ao salvar tarefa:", error);
       Alert.alert("Erro", "Não foi possível salvar a tarefa");
     }
   };
@@ -295,6 +293,8 @@ export default function ListasScreen() {
     }
   }, [selectedTasks]);
 
+  // Função: Executa exclusão em lote das tarefas selecionadas
+  // Função: Executa exclusão em lote das tarefas selecionadas
   const applyBulkAction = async () => {
     if (selectedTasks.length === 0) {
       Alert.alert("Aviso", "Selecione pelo menos uma tarefa");
@@ -442,6 +442,37 @@ export default function ListasScreen() {
     );
   };
 
+  const renderVoteButtons = (voteId: string) => (
+    <View
+      style={{
+        flexDirection: "row",
+        justifyContent: "space-around",
+        marginTop: 10,
+      }}
+    >
+      <TouchableOpacity
+        style={{
+          backgroundColor: "green",
+          padding: 10,
+          borderRadius: 5,
+        }}
+        onPress={() => handleVote(voteId)}
+      >
+        <Text style={{ color: "white" }}>Aprovar</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={{
+          backgroundColor: "red",
+          padding: 10,
+          borderRadius: 5,
+        }}
+        onPress={() => handleRemoveVote(voteId)}
+      >
+        <Text style={{ color: "white" }}>Rejeitar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const completedCount = tasks.filter((task) => task.completed).length;
 
   if (loading) {
@@ -536,18 +567,13 @@ export default function ListasScreen() {
         />
       )}
 
-      {/* Botão de Votações Flutuante à Esquerda */}
-      {pendingVotes.length > 0 && !deleteMode && (
-        <TouchableOpacity
-          style={styles.votesFab}
-          onPress={() => setVotesModalVisible(true)}
-        >
-          <Ionicons name="thumbs-up" size={24} color="#fff" />
-          <View style={styles.fabBadge}>
-            <Text style={styles.fabBadgeText}>{pendingVotes.length}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
+      {/* Botão de Votações */}
+      <VotingButton
+        votes={pendingVotes}
+        voteType="delete_task"
+        colmeiaId={activeColmeia?.id || ""}
+        visible={!deleteMode}
+      />
 
       {/* Modal de Adicionar Tarefa */}
       <Modal
@@ -673,154 +699,6 @@ export default function ListasScreen() {
                   </Text>
                 </View>
               </View>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal de Votações */}
-      <Modal
-        visible={votesModalVisible}
-        animationType="slide"
-        transparent
-        statusBarTranslucent={true}
-        onRequestClose={() => setVotesModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.modalContent, { backgroundColor: theme.cardColor }]}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.textOnCard }]}>
-                Votações Pendentes
-              </Text>
-              <TouchableOpacity onPress={() => setVotesModalVisible(false)}>
-                <Ionicons name="close" size={24} color={theme.textOnCard} />
-              </TouchableOpacity>
-            </View>
-
-            {pendingVotes.length === 0 ? (
-              <View style={styles.emptyActivities}>
-                <Text style={[styles.emptyText, { color: theme.textOnCard }]}>
-                  Nenhuma votação pendente
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={pendingVotes}
-                keyExtractor={(item) => item.id}
-                style={styles.activitiesList}
-                renderItem={({ item }) => {
-                  const userId = auth.currentUser?.uid;
-                  const hasVoted = userId && item.votes.includes(userId);
-                  const isCreator = userId === item.createdBy;
-                  const votePercentage =
-                    (item.votes.length / item.requiredVotes) * 100;
-
-                  return (
-                    <View
-                      style={[
-                        styles.voteCard,
-                        { backgroundColor: theme.background },
-                      ]}
-                    >
-                      <View style={styles.voteHeader}>
-                        <Ionicons name="trash" size={20} color={theme.danger} />
-                        <Text style={[styles.voteTitle, { color: theme.text }]}>
-                          {item.targetName}
-                        </Text>
-                      </View>
-
-                      <Text
-                        style={[
-                          styles.voteDescription,
-                          { color: theme.text, opacity: 0.7 },
-                        ]}
-                      >
-                        Votação para excluir tarefa
-                      </Text>
-
-                      <View style={styles.voteProgress}>
-                        <View
-                          style={[
-                            styles.progressBarContainer,
-                            { backgroundColor: theme.text + "20" },
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.progressBar,
-                              {
-                                width: `${votePercentage}%`,
-                                backgroundColor: theme.success,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <Text style={[styles.voteCount, { color: theme.text }]}>
-                          {item.votes.length} de {item.requiredVotes} votos
-                        </Text>
-                      </View>
-
-                      <View style={styles.voteActions}>
-                        {hasVoted ? (
-                          <>
-                            <View
-                              style={[
-                                styles.votedBadge,
-                                { backgroundColor: theme.success + "20" },
-                              ]}
-                            >
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={16}
-                                color={theme.success}
-                              />
-                              <Text
-                                style={[
-                                  styles.votedText,
-                                  { color: theme.success },
-                                ]}
-                              >
-                                Você votou
-                              </Text>
-                            </View>
-                            {!isCreator && (
-                              <TouchableOpacity
-                                style={[
-                                  styles.removeVoteButton,
-                                  { backgroundColor: theme.danger + "20" },
-                                ]}
-                                onPress={() => handleRemoveVote(item.id)}
-                              >
-                                <Text
-                                  style={[
-                                    styles.removeVoteText,
-                                    { color: theme.danger },
-                                  ]}
-                                >
-                                  Remover voto
-                                </Text>
-                              </TouchableOpacity>
-                            )}
-                          </>
-                        ) : (
-                          <TouchableOpacity
-                            style={[
-                              styles.voteButton,
-                              { backgroundColor: theme.primary },
-                            ]}
-                            onPress={() => handleVote(item.id)}
-                          >
-                            <Ionicons name="thumbs-up" size={16} color="#fff" />
-                            <Text style={styles.voteButtonText}>Votar</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  );
-                }}
-              />
             )}
           </View>
         </View>

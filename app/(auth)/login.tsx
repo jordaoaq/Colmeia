@@ -32,7 +32,6 @@ export default function LoginScreen() {
       try {
         const user = auth.currentUser;
         if (user) {
-          console.log("Usuário já autenticado:", user.email);
           router.replace("/(app)/home");
         }
       } catch (error) {
@@ -62,7 +61,7 @@ export default function LoginScreen() {
         setRememberMe(true);
       }
     } catch (error) {
-      console.log("Erro ao carregar email salvo:", error);
+      // Silently ignore saved email load errors
     }
   };
 
@@ -73,7 +72,6 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    console.log("Tentando fazer login com:", email);
 
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -81,7 +79,6 @@ export default function LoginScreen() {
         email,
         password
       );
-      console.log("Login bem-sucedido!", userCredential.user.uid);
 
       // Salva ou remove o email baseado na escolha do usuário
       if (rememberMe) {

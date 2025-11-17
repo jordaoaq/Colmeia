@@ -224,7 +224,6 @@ export default function HomeScreen() {
           id: doc.id,
           ...doc.data(),
         })) as Activity[];
-        console.log("Atividades carregadas:", activitiesData.length);
         setRecentActivities(activitiesData);
       },
       (error) => {
@@ -236,10 +235,6 @@ export default function HomeScreen() {
             id: doc.id,
             ...doc.data(),
           })) as Activity[];
-          console.log(
-            "Atividades carregadas (sem ordem):",
-            activitiesData.length
-          );
           setRecentActivities(activitiesData);
         });
       }
@@ -277,26 +272,14 @@ export default function HomeScreen() {
   // =====================
   const deleteNote = async (noteId: string, authorId: string) => {
     if (authorId !== user?.uid) {
-      Alert.alert("Aviso", "Você só pode deletar suas próprias notas");
       return;
     }
 
-    Alert.alert("Confirmar", "Deseja remover esta nota?", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Remover",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteDoc(
-              doc(db, "colmeias", activeColmeia!.id, "notes", noteId)
-            );
-          } catch (error) {
-            Alert.alert("Erro", "Não foi possível remover a nota");
-          }
-        },
-      },
-    ]);
+    try {
+      await deleteDoc(doc(db, "colmeias", activeColmeia!.id, "notes", noteId));
+    } catch (error) {
+      console.error("Erro ao remover nota:", error);
+    }
   };
 
   // =====================

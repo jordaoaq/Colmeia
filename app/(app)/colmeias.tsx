@@ -51,6 +51,16 @@ export default function ColmeiasScreen() {
   const [inviteCode, setInviteCode] = useState("");
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [selectedColmeiaMembers, setSelectedColmeiaMembers] = useState<
+    ColmeiaMember[]
+  >([]);
+
+  interface ColmeiaMember {
+    userId: string;
+    email: string;
+    joinedAt: Date;
+  }
 
   // Gera código de convite aleatório
   const generateInviteCode = () => {
@@ -94,7 +104,6 @@ export default function ColmeiasScreen() {
         userId,
         email: userEmail,
         joinedAt: serverTimestamp(),
-        role: "admin",
       });
 
       // Registra atividade
@@ -171,7 +180,6 @@ export default function ColmeiasScreen() {
         userId,
         email: userEmail,
         joinedAt: serverTimestamp(),
-        role: "member",
       });
 
       // Registra atividade
@@ -195,6 +203,27 @@ export default function ColmeiasScreen() {
       Alert.alert("Erro", "Não foi possível entrar na colmeia");
     } finally {
       setJoining(false);
+    }
+  };
+
+  // Busca membros da colmeia
+  const fetchColmeiaMembers = async (colmeiaId: string) => {
+    try {
+      const membersRef = collection(db, "colmeias", colmeiaId, "members");
+      const membersSnapshot = await getDocs(membersRef);
+      const members: ColmeiaMember[] = membersSnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          userId: data.userId,
+          email: data.email,
+          joinedAt: data.joinedAt.toDate(),
+        };
+      });
+      setSelectedColmeiaMembers(members);
+      setMembersModalVisible(true);
+    } catch (error) {
+      console.error("Erro ao buscar membros da colmeia:", error);
+      Alert.alert("Erro", "Não foi possível carregar os membros da colmeia");
     }
   };
 
@@ -318,6 +347,12 @@ export default function ColmeiasScreen() {
                   Código: {item.inviteCode}
                 </Text>
               </View>
+              <TouchableOpacity
+                style={styles.membersButton}
+                onPress={() => fetchColmeiaMembers(item.id)}
+              >
+                <Text style={{ color: theme.primary }}>Membros</Text>
+              </TouchableOpacity>
               {activeColmeia?.id === item.id && (
                 <Ionicons
                   name="checkmark-circle"
@@ -434,6 +469,39 @@ export default function ColmeiasScreen() {
                 <Text style={styles.saveButtonText}>Entrar</Text>
               )}
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para exibir membros da colmeia */}
+      <Modal
+        visible={membersModalVisible}
+        animationType="slide"
+        transparent
+        statusBarTranslucent={true}
+        onRequestClose={() => setMembersModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { backgroundColor: theme.cardColor }]}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.textOnCard }]}>
+                Membros
+              </Text>
+              <TouchableOpacity onPress={() => setMembersModalVisible(false)}>
+                <Ionicons name="close" size={24} color={theme.textOnCard} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={selectedColmeiaMembers}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <Text style={{ color: theme.textOnCard, marginBottom: 8 }}>
+                  {item.email}
+                </Text>
+              )}
+            />
           </View>
         </View>
       </Modal>
@@ -568,6 +636,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: "center",
+    backgroundColor: "#007AFF",
   },
   saveButtonText: {
     color: "#fff",
@@ -576,5 +645,12 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  membersButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#E5E5EA",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
